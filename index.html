@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSV File Uploader</title>
+</head>
+<body>
+    <div style="display: flex;">
+        <div style="flex: 1; padding: 10px;">
+            <h1>CSV File Uploader</h1>
+            <form id="uploadForm" action="/upload" method="POST">
+                <input type="file" id="csvFile" accept=".csv">
+                <button type="submit">Upload</button>
+            </form>
+            <div id="fileDetails"></div>
+        </div>
+        <div style="flex: 1; padding: 10px;">
+            <button id="viewDataButton">View Database Data</button>
+            <div id="databaseData"></div>
+        </div>
+    </div>
+    
+<script>
+        document.getElementById('uploadForm').addEventListener('submit', async function(event) {
+            event.preventDefault();
+            const fileInput = document.getElementById('csvFile');
+            const file = fileInput.files[0];
+            if (file) {
+                const detailsDiv = document.getElementById('fileDetails');
+                try {
+                    const reader = new FileReader();
+                    reader.onload = async function(e) {
+                        const csvContent = e.target.result;
+                        const formData = new FormData();
+                        formData.append('csvContent', csvContent);
+                        const response = await fetch('http://localhost:3000/upload', {
+                            method: 'POST',
+                            body: formData
+                        });
+                        if (!response.ok) {
+                            throw new Error('Network response was not ok');
+                        }
+                        const result = await response.text();
+                        detailsDiv.innerHTML = `<p>${result}</p>`;  // 確保模板文字終止
+                        const lines = csvContent.split('\n');
+                        const headers = lines[0].split(',');
+                        const data = lines.slice(1).map(line => line.split(','));
+                        let tableHTML = '<table border="1"><tr>';
+                        headers.forEach(header => {
+                            tableHTML += `<th>${header.trim()}</th>`;
+                        });
+                        tableHTML += '</tr>';
+                        data.forEach(row => {
+                            tableHTML += '<tr>';
+                            row.forEach(cell => {
+                                tableHTML += `<td>${cell.trim()}</td>`;
+                            });
+                            tableHTML += '</tr>';
+                        });
+                        tableHTML += '</table>';
+                        detailsDiv.innerHTML += tableHTML;  // 確保模板文字終止
+                    };
+                    reader.readAsText(file);
+                } catch (error) {
+                    detailsDiv.innerHTML = '<p>Error processing file. Please check console for more info. Error: ' + error.message + '</p>';
+                    console.error('Error in file processing:', error);
+                }
+            } else {
+                alert('Please select a file.');
+            }
+        });
+
+        document.getElementById('viewDataButton').addEventListener('click', async function() {
+            try {
+                const response = await fetch('http://localhost:3000/getdata');
+                if (!response.ok) {
+                    throw new Error('Network response was not ok ' + response.statusText);
+                }
+                const data = await response.json();
+                const databaseDataDiv = document.getElementById('databaseData');
+                if (data.length > 0) {
+                    let tableHTML = '<table border="1"><tr><th>ID</th><th>Name</th><th>Age</th><th>Email</th></tr>';
+                    data.forEach(row => {
+                        tableHTML += `<tr><td>${row.id}</td><td>${row.name}</td><td>${row.age}</td><td>${row.email}</td></tr>`;
+                    });
+                    tableHTML += '</table>';
+                    databaseDataDiv.innerHTML = tableHTML;
+                } else {
+                    databaseDataDiv.innerHTML = '<p>No data in database.</p>';
+                }
+            } catch (error) {
+                document.getElementById('databaseData').innerHTML = '<p>Error fetching data. Please check console for more info. Error: ' + error.message + '</p>';
+                console.error('Error fetching data:', error);
+            }
+        });
+    </script>
+</body>
+</html>
